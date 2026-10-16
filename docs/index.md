@@ -3,6 +3,31 @@
 `AGENTS.md` has the short routing table. This is the long one, including the
 research notes. Check here before concluding a topic hasn't been researched.
 
+## Skills and commands
+
+### Skills (`.opencode/skills/`)
+
+| Skill | Load it when |
+| --- | --- |
+| [scope](../.opencode/skills/scope/SKILL.md) | A target URL or hostname is named. Normalizes the input, scaffolds `recon/<host>/`, runs passive enumeration, then **stops at the scope gate** before anything touches the host. |
+
+The `scope` skill is the canonical scope-and-recon workflow. It orchestrates
+these docs rather than restating them — if a command or flag is missing from it,
+fix the doc it points at, not the skill.
+
+### Commands (`.opencode/commands/`)
+
+| Command | Does |
+| --- | --- |
+| `/scope <url>` | Loads the `scope` skill, full flow from scratch |
+| `/recon <host>` | Loads the `scope` skill, resuming at active recon |
+| `/report <host>` | Confirmed bug → submittable report |
+| `/lookup <topic>` | Research protocol — check the index, verify sources, write the note |
+
+`/scope` and `/recon` are deliberate delegates. The workflow lives in the skill
+so there is exactly one copy of it. See the no-duplication rule in
+[`../CLAUDE.md`](../CLAUDE.md).
+
 ## Operational docs — `docs/`
 
 | Doc | Read it when |

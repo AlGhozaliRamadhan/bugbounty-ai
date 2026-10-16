@@ -10,13 +10,14 @@ including tasks that need none of the detail.
 
 | The task is | Read first |
 | --- | --- |
+| A target URL or hostname is named | the **`scope` skill** — see below. It normalizes, scaffolds, and gates |
 | Anything that touches a host | `recon/<target>/scope.md`. **Non-negotiable.** |
 | The whole engagement shape, or where a gate stops you | `docs/workflow.md` |
 | About to run recon | `docs/recon-playbook.md` — the runnable pipeline |
 | Picking a tool, setting a rate flag, choosing a wordlist | `docs/toolchain.md` |
 | Kali / WSL / MCP broken, tool missing, wordlist path | `docs/environment.md` — process model, recovery, verified tool inventory |
 | Running bash through PowerShell | `docs/environment.md` § "Writing bash through PowerShell" |
-| Scaffolding a target folder | `.\scripts\new-target.ps1 -Target <host>` |
+| Scaffolding a target folder by hand | `.\scripts\new-target.ps1 -Target <host>` |
 | Have a finding to write up | `docs/report-writing.md` |
 | Answering a methodology question | `research/notes/_index.md` — check before researching |
 | Running tools, shell commands, probes | `research/notes/_lessons.md` — real mistakes |
@@ -27,17 +28,14 @@ including tasks that need none of the detail.
 
 Full doc index, including the research notes: `docs/index.md`.
 
-**Slash commands** (opencode, `.opencode/commands/`) exist for the four
-recurring tasks, and each one bakes in the gate that task depends on:
+**Commands.** `.opencode/commands/` are thin delegates to the skill and docs:
 
 | Command | Does |
 | --- | --- |
-| `/scope <host>` | Scaffold `recon/<host>/` and complete the scope gate |
-| `/recon <host>` | Run the playbook, with the scope and rate gates enforced |
+| `/scope <url>` | Load the `scope` skill and run the whole flow |
+| `/recon <host>` | Same, resuming at active recon — scope already confirmed |
 | `/report <host>` | Turn a confirmed bug into a submittable report |
 | `/lookup <topic>` | Research protocol — check the index, verify sources, write the note |
-
-Use them if your harness supports them. If not, the underlying docs are the same.
 
 ## Do not hedge on in-scope work
 

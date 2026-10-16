@@ -1,43 +1,18 @@
 ---
-description: Run the recon pipeline against an in-scope host
+description: Run recon against a host whose scope is already confirmed
 ---
 
-Run recon against `$1`, following `docs/recon-playbook.md`.
+Load the `scope` skill with the `skill` tool and follow it, using `$1` as the
+target. Then continue from **Step 5** — the scope gate is already passed for
+this host, so go straight to DNS resolution, port scan, HTTP probing, crawling
+and content discovery per `docs/recon-playbook.md`.
 
-Gate before you start:
+Two checks before you start:
 
-- Read `recon/$1/scope.md`. If any placeholder is still open, stop and tell me
-  which ones — unenforced scope invalidates everything downstream.
-- Confirm the host is on the in-scope list. A subdomain found by recon is not
-  automatically in scope.
-- Note the stated rate limit. Every tool in the playbook sets one; keep it.
+- Read `recon/$1/scope.md`. If any placeholder is still open, stop and ask —
+  unenforced scope invalidates everything downstream.
+- Read `recon/$1/notes.md` if it exists. If recon already ran here, don't rerun
+  it blindly — report what's covered and ask what's left.
 
-Then work the phases in order — they depend on each other (you cannot port scan
-an unresolved host, you cannot probe HTTP on a port you haven't found):
-
-1. Passive subdomains — `subfinder`, `assetfinder`, `amass -passive`, `waybackurls`
-2. Resolve — `dnsx -a -resp`, and review CNAMEs for out-of-scope hosts
-3. Ports — `naabu -top-ports 1000` fast, then `nmap -sS -T3 -p-` on survivors
-4. HTTP probe — `httpx`, keeping `-cname`/`-ip` to catch third-party hosts
-5. URLs and parameters — `katana`, `gau`, then `gf qurl`
-6. Content discovery — `ffuf` with extensions, rate-limited
-7. Triage — `nuclei`, `whatweb`, `wafw00f`
-
-Execution notes that are not optional:
-
-- `execute_command` runs `/bin/sh` (dash), not bash. `source` fails — use
-  `. /etc/profile.d/gobin.sh` for `gau`, `waybackurls`, `gf`, `jaeles`.
-- Build in `/tmp/work` inside Kali, then copy finished files to the target
-  folder. `/mnt/d` is slow.
-- `/mnt/d/Bug Bounty/...` must stay quoted. The space in the path splits it.
-- Prefer `execute_command` over the named `*_scan` MCP tools. `metasploit_run`,
-  `hydra_attack`, `john_crack`, `enum4linux_scan` fail outright — those
-  dependencies aren't installed.
-- Never send `sudo`; Kali is already root.
-
-When you finish, append to `recon/$1/notes.md`: what ran, what was rate-limited,
-which hosts fell outside the boundary, and any dead ends. Dead ends matter most —
-they stop the next session repeating work that already failed.
-
-Treat nuclei output as a hypothesis, not a finding. Nothing goes into `findings/`
-without manual verification.
+Log the outcome in `notes.md`, dead ends especially. Treat nuclei output as a
+hypothesis; nothing goes into `findings/` without manual verification.

@@ -18,14 +18,29 @@ file.**
 
 ## Before starting work
 
-1. Read `AGENTS.md` — it has the scope rules, recon layout, WSL/Kali setup, and
-   the research protocol.
-2. Check `research/notes/_index.md` — the topic may already be researched.
+1. Read `AGENTS.md` — it holds the scope gate, the recon layout rules, the
+   research protocol, and the environment rules you need to avoid the obvious
+   failures.
+2. Check `docs/index.md` — the full map of operational docs and research notes.
 3. Check `recon/<target>/scope.md` — it defines what is in scope for that host.
-4. Read `research/notes/_lessons.md` if you're about to run tooling, shell
+   Nothing touches a host before this passes.
+4. Check `research/notes/_index.md` — the topic may already be researched.
+5. Read `research/notes/_lessons.md` if you're about to run tooling, shell
    commands, or network probes. It records real mistakes that are easy to
    repeat, including the PowerShell/bash quoting trap and the
    status-code-vs-content probe trap.
+
+## Slash commands
+
+If your harness supports opencode-style project commands, four exist in
+`.opencode/commands/` and each enforces the gate its task depends on:
+
+| Command | Does |
+| --- | --- |
+| `/scope <host>` | Scaffold `recon/<host>/` and complete the scope gate |
+| `/recon <host>` | Run the playbook, with scope and rate gates enforced |
+| `/report <host>` | Turn a confirmed bug into a submittable report |
+| `/lookup <topic>` | Research protocol — check the index, verify sources, write the note |
 
 ## Two rules that get violated most
 
@@ -39,7 +54,12 @@ file.**
 ## House conventions
 
 - Keep `AGENTS.md` under ~200 lines and make it pointers, not an encyclopedia.
-  Detail belongs in `research/notes/`.
+  Detail belongs in `docs/` (how we work here) or `research/notes/` (what we
+  learned out there).
+- **Never copy a fact into two places.** `AGENTS.md` and `CLAUDE.md` must never
+  hold the same rule, and `AGENTS.md` must never restate something
+  `docs/environment.md` already documents. Duplicated facts drift apart, and
+  then agents get contradictory instructions. Point instead.
 - Use MUST/SHOULD/NEVER and be specific — "use `raft-medium-directories.txt`",
   not "use a good wordlist". Vague rules don't get followed.
 - Never cache raw PDFs or scraped HTML; convert to a dated Markdown note.

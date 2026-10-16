@@ -27,6 +27,18 @@ including tasks that need none of the detail.
 
 Full doc index, including the research notes: `docs/index.md`.
 
+**Slash commands** (opencode, `.opencode/commands/`) exist for the four
+recurring tasks, and each one bakes in the gate that task depends on:
+
+| Command | Does |
+| --- | --- |
+| `/scope <host>` | Scaffold `recon/<host>/` and complete the scope gate |
+| `/recon <host>` | Run the playbook, with the scope and rate gates enforced |
+| `/report <host>` | Turn a confirmed bug into a submittable report |
+| `/lookup <topic>` | Research protocol — check the index, verify sources, write the note |
+
+Use them if your harness supports them. If not, the underlying docs are the same.
+
 ## Do not hedge on in-scope work
 
 Recon, subdomain enumeration, port scanning, fuzzing, auth/authz testing,
@@ -128,45 +140,28 @@ durable record.
 
 ## Environment rules
 
-- **The `kali` MCP is `scripts/kali-mcp-bridge.sh`, not the raw bridge.** OpenCode
-  spawns that wrapper, which starts the HTTP API server if it isn't listening
-  before handing stdio to `mcp-server`. Don't point the config at `mcp-server`
-  directly — you lose the self-healing.
-- **The MCP is two processes.** `kali-server-mcp` (HTTP on `127.0.0.1:5000`
-  inside Kali) executes the commands; `mcp-server` is the stdio bridge. If tools
-  still error, run `.\scripts\check-kali.ps1 -Fix`. Health is judged by a
-  `POST /api/command` round-trip — **not** by `pgrep -f kali-server-mcp`, which
-  never matches because the process reports itself as `python3 server.py`.
-- **The API server is unsupervised.** Nothing restarts it if it crashes or if
-  `wsl --shutdown` is run. The wrapper covers the common case at MCP start.
-- **Prefer `execute_command` over the named `*_scan` tools.** The 11 MCP tools
-  include `nmap_scan`, `gobuster_scan`, `dirb_scan`, `nikto_scan`,
-  `sqlmap_scan`, `metasploit_run`, `hydra_attack`, `john_crack`,
-  `wpscan_analyze`, `enum4linux_scan`, `server_health`, `execute_command`.
-  `metasploit_run`, `hydra_attack`, `john_crack`, and `enum4linux_scan`
-  depend on software that is **not installed** here, so those four will fail
-  outright — use `execute_command` with a tool that is present instead.
-  `john_crack` additionally defaults to `/usr/share/wordlists/rockyou.txt`,
-  which does not exist; only the `.gz` is shipped.
+- **If a `kali` MCP tool fails, it is almost never your command.** The MCP is
+  two processes — an HTTP API server inside Kali (`127.0.0.1:5000`) that executes
+  commands, and a stdio bridge OpenCode spawns. Nothing supervises the API
+  server, so it can be dead while everything is configured correctly. Run
+  `.\scripts\check-kali.ps1 -Fix`; never hand-roll a restart.
+- **Prefer `execute_command` over the named `*_scan` MCP tools.** Four of them
+  (`metasploit_run`, `hydra_attack`, `john_crack`, `enum4linux_scan`) fail
+  outright because their dependencies aren't installed here, and `john_crack`
+  defaults to a wordlist path that doesn't exist. Full tool list, process model,
+  and the `pgrep` health-check trap: **`docs/environment.md`**.
 - **`execute_command` runs under `/bin/sh` (dash), not bash.** `source` fails;
   use `. /etc/profile.d/gobin.sh`. `&&`, `||`, `$()` and pipes are fine. The
   Go tools aren't on `sh`'s PATH, so prefix that dot-source before using
   `gau`, `waybackurls`, `gf`, `jaeles`.
-- **`server_health` lies about tools.** Its `status: healthy` field is real, but
-  its `tools_status` reports `dirb: true` — which happens to be correct here,
-  but the endpoint is not a reliable presence check. Use `command -v`.
-- **Not every tool is installed.** Verified present: `nmap httpx ffuf nuclei
-  katana subfinder naabu dnsx amass assetfinder sqlmap nikto gobuster
-  feroxbuster whatweb wafw00f hakrawler dalfox gau waybackurls gf jaeles
-  dirb wpscan jq rg git go`.
-  Verified **absent**: `metasploit`, `hydra`, `john`, `enum4linux`,
-  `masscan`, `gospider`, `theharvester`, `interactsh-client`, `uncover`,
-  `dirsearch`. Check before planning around a tool; install with
+- **Tool availability: assume nothing.** Not everything is installed, and
+  `server_health`'s `tools_status` is **not** a presence check — use
+  `command -v`. The verified inventory is in `docs/environment.md`; check it
+  before planning around any tool. Install more with
   `.\scripts\setup-kali.ps1 -Packages <name>`.
 - **Kali inherits the whole Windows PATH** via WSL interop, including paths with
-  spaces (`/mnt/c/Program Files/...`). Windows binaries are callable by bare
-  name from Kali. Core tools still resolve to `/usr/bin` first, but if one
-  behaves oddly run `which -a <tool>` before debugging the tool.
+  spaces. Windows binaries are callable by bare name. Core tools still resolve
+  to `/usr/bin` first, but run `which -a <tool>` if one behaves oddly.
 - **Kali runs as root** with no default user and no `sudo`. Do not prefix
   commands with `sudo`. Root is also what makes `nmap -sS` and `-O` work here.
 - **Stay on D:** — Kali VHD at `D:\WSL\Kali` (Ubuntu: `D:\WSL\Ubuntu`), all
@@ -183,12 +178,15 @@ durable record.
 - **Never write multi-line bash inline through PowerShell.** `wsl -e bash -lc
   "..."` puts the string through PowerShell's parser, so `&&`, `||`, `$()` and
   `<` break in ways that look like bash errors. For anything beyond one simple
-  command, write a script file (no BOM) and pipe it to `bash -s`. Recipe in
-  `docs/environment.md`.
+  command, write a script file (no BOM) and pipe it to `bash -s`. Working recipe
+  in `docs/environment.md`.
 - **The `kali` MCP is registered in this project only.** `opencode.json` here
   wires it. The global config at `C:\Users\ozate\.config\opencode\opencode.json`
   has its own MCPs and is **not** to be edited from here. Keep this workspace
   self-contained on D:.
+
+Full environment reference — process model, recovery commands, wordlist paths,
+nmap caveats, the complete tool inventory: **`docs/environment.md`**.
 
 ## House conventions
 

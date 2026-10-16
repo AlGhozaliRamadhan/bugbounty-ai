@@ -1,0 +1,21 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "kali": {
+      "type": "local",
+      "command": [
+        "wsl.exe",
+        "-d",
+        "kali-linux",
+        "-e",
+        "mcp-server",
+        "--server",
+        "http://localhost:5000",
+        "--timeout",
+        "600"
+      ],
+      "timeout": 120000,
+      "enabled": true
+    }
+  }
+}

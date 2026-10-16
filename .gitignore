@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# Recon output — bulky, regenerable, and sometimes sensitive.
+# The durable record of a target is scope.md + notes.md + findings/, all of
+# which ARE tracked. Raw tool dumps are not.
+# ---------------------------------------------------------------------------
+recon/*/subdomains.txt
+recon/*/urls.txt
+recon/*/ports.txt
+recon/*/live.txt
+recon/*/*.json
+recon/*/*.csv
+recon/*/*.xml
+recon/*/screenshots/
+recon/*/scripts/
+
+# Per-target PoC scripts. These are usually one-off curl/nmap invocations
+# written to /tmp/work; anything worth keeping belongs in research/notes/ or
+# docs/templates/ instead.
+recon/*/poc/
+
+# ---------------------------------------------------------------------------
+# Credentials and capture material — never commit, ever.
+# If you save a session cookie or a bearer token, it goes in a local file
+# that is gitignored. notes.md must never contain a live token.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+*.p12
+*.keystore
+credentials*
+*cookie*.txt
+*session*.json
+secrets/
+
+# ---------------------------------------------------------------------------
+# Kali scratch — per AGENTS.md, work happens in /tmp/work inside WSL and only
+# finished files get copied back. Nothing here should ever land on D:.
+# ---------------------------------------------------------------------------
+/tmp/
+work/
+scratch/
+
+# ---------------------------------------------------------------------------
+# Tooling / editor noise
+# ---------------------------------------------------------------------------
+node_modules/
+.DS_Store
+Thumbs.db
+*.swp
+*~

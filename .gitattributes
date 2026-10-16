@@ -1,0 +1,15 @@
+# Normalize line endings so diffs stay readable.
+# Without this, git rewrites LF->CRLF on every checkout and every .md file
+# shows as fully modified for no reason.
+*.md      text eol=lf
+*.json    text eol=lf
+*.jsonc   text eol=lf
+.gitignore    text eol=lf
+.gitattributes text eol=lf
+
+# PowerShell is happiest with CRLF on Windows.
+*.ps1     text eol=crlf
+*.psm1    text eol=crlf
+
+# WSL-side scripts are authored and executed inside Kali, where LF is correct.
+*.sh      text eol=lf

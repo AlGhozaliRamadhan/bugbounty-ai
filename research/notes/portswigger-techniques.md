@@ -2,6 +2,7 @@
 title: PortSwigger Research — current technique landscape
 date: 2026-10-16
 type: technique
+status: current
 verified: 2026-10-16
 sources:
   - https://portswigger.net/research/rss (40-item live feed, fresh lookup)
@@ -14,6 +15,28 @@ sources:
 Pulled from the live RSS feed on 2026-10-16. **Use the RSS feed, not the HTML
 index** — `/research/rss` is the clean entry point and returns all 40 recent posts
 in one request. (`HEAD /research` 404s; always GET. See `sources.md`.)
+
+## Newest posts (feed re-pulled 2026-10-16)
+
+Added on a second pull of the same feed. Titles only — follow the links before
+citing, per the protocol in `AGENTS.md`.
+
+- **"The model isn't cooperating"** (2026-10-06) — newest on the feed.
+- **"Smashing the token limit with overlapping fragments"** (2026-10-05) —
+  token-limit work. Relevant to any LLM-backed feature.
+- **"HTTP/3 in Burp Suite"** (2026-09-23) — companion to the Turbo Intruder
+  HTTP/3 item below.
+- **"What's in a tag name? JavaScript, apparently"** (2026-08-25) — parser
+  boundary between HTML tag names and JS identifiers.
+- **"CSS:the bomb inside your inbox"** (2026-08-06) — CSS-based attack surface
+  in email clients. Pairs with the CSS exfiltration item below.
+- **"CRLF-Powered Desync Attacks: Beheading HTTP Streams"** (2026-08-05) —
+  a desync variant worth pairing with the smuggling posts.
+- **"Can AI do novel security research? Meet the HTTP Terminator"** (2026-08-05)
+  — see "AI in the research loop" below.
+
+The three LLM/AI posts in a two-week window is itself the signal: if a target
+ships an LLM-backed feature, that surface is under-defended and under-reported.
 
 ## The dominant theme: parser differentials
 
@@ -65,7 +88,7 @@ parser tricks defeat them:
 ```js
 // 1. Unicode whitespace overwrite — U+2000 before the name
 document.cookie = `${String.fromCodePoint(0x2000)}__Host-name=injected; Domain=.example.com; Path=/;`
-// -> server receives: Cookie: __Host-name=Carlos;  â€€__Host-name=<img src=x onerror=alert(1)>;
+// -> server receives: Cookie: __Host-name=Carlos;  —__Host-name=<img src=x onerror=alert(1)>;
 ```
 ```js
 // 2. Legacy $Version parsing

@@ -2,6 +2,7 @@
 title: TBHM — The Bug Hunter's Methodology
 date: 2026-10-16
 type: technique
+status: current
 verified: 2026-10-16
 sources:
   - https://github.com/jhaddix/tbhm (fresh lookup, raw.githubusercontent.com)

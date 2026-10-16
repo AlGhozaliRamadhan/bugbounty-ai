@@ -2,6 +2,7 @@
 title: Assetnote → Searchlight Cyber — attack-surface research
 date: 2026-10-16
 type: technique
+status: current
 verified: 2026-10-16
 sources:
   - https://www.slcyber.io/research (post index, fresh lookup)

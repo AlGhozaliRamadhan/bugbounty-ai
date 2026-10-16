@@ -2,7 +2,10 @@
 title: Research source access map
 date: 2026-10-16
 type: reference
-verified: 2026-10-16 (all routes below probed from this workstation)
+status: current
+verified: 2026-10-16
+sources:
+  - live probes from this workstation, re-probed 2026-10-16
 ---
 
 # Research source access map
@@ -19,10 +22,12 @@ All probes done 2026-10-16 with GET, `User-Agent: Mozilla/5.0 ... Chrome/120`.
 | --- | --- | --- | --- |
 | **TBHM** | `raw.githubusercontent.com/jhaddix/tbhm/master/<file>` | n/a (git) | Static repo. Skip the GitHub UI entirely. |
 | **PortSwigger Research** | `https://portswigger.net/research` | **`/research/rss`** — 40 items | **404s on HEAD, 200 on GET.** Always GET. |
+| **PortSwigger Academy** | `https://portswigger.net/web-security` | n/a | Per-class reference pages, and the `all-labs` view for practice targets. Best structured source for a single vulnerability class. |
 | **Orange Tsai** | `https://blog.orange.tw/posts/<slug>/` | **`/atom.xml`** — 100 entries | Static site. Posts have `-en`/`-ch` pairs — **take `-en`**. |
 | **tl;dr sec** | `https://tldrsec.com/` | **`/feed.xml`** — 20 items | Redirects to `rss.beehiiv.com`. Beehiiv-hosted. |
 | **Assetnote** | **`https://www.slcyber.io/research`** | none | **MOVED.** `blog.assetnote.io` 301s to `www.slcyber.io/assetnote`. |
-| **Pentester Land** | `https://pentester.land/` | **none** | All feed paths 404. Scrape the HTML. |
+| **Searchlight Cyber** | **`https://www.slcyber.io/research-blog`** | none | Same content, the current index path. `/research` also works. |
+| **Pentester Land** | **`https://pentester.land/sitemap.xml`** | **none** | **JS-rendered — see trap 4.** Use the sitemap, not the HTML. |
 | **web.archive.org** | `https://web.archive.org/` | n/a | Fallback for dead links, JS-rendered pages, vanished slides. |
 
 ## Traps (all confirmed by probing, not assumed)
@@ -54,8 +59,25 @@ Every conventional feed path 404s: `/rss/`, `/feed/`, `/atom.xml`,
 `/blog` holds lighter "Beacon" threat-intel posts; `/research` holds the
 vulnerability research.
 
-### 4. Pentester Land has no feed at all
-`/feed/`, `/rss.xml`, `/atom.xml` all hard-404. HTML scrape only (~20 KB page).
+### 4. Pentester Land is client-side rendered — use the sitemap
+
+`/feed/`, `/rss.xml`, `/atom.xml` all hard-404, which makes it look like an
+HTML-scraping target. **It isn't one.** `pentester.land/` returns 200 and ~20 KB
+of HTML containing **zero `href` attributes** — the page is rendered by
+JavaScript. A scraper finds nothing and concludes the site is empty. It isn't.
+
+```text
+GET https://pentester.land/            -> 200, 20 KB, 0 hrefs
+GET https://pentester.land/sitemap.xml -> 200, 34 KB, full URL index
+```
+
+**Use `https://pentester.land/sitemap.xml`** — 190 URLs as of 2026-10-16, all
+`/blog/<slug>/` posts. Filter it with regex rather than paginating a rendered
+index.
+
+Content note: the blog skews recon and methodology. It is a good source for
+subdomain enumeration and recon workflow, and thin on access-control and auth
+vuln classes. Use PortSwigger Academy for those.
 
 ### 5. Orange Tsai has no `/feed/`
 Only `/atom.xml` works. A WordPress assumption (`/feed/`) gets a 404.

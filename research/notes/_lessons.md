@@ -2,6 +2,7 @@
 title: Lessons learned — do / don't
 date: 2026-10-16
 type: reference
+status: current
 verified: 2026-10-16
 sources:
   - mistakes made during the initial workspace setup and research pass

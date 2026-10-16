@@ -2,6 +2,7 @@
 title: Orange Tsai — multi-step vulnerability chains
 date: 2026-10-16
 type: technique
+status: current
 verified: 2026-10-16
 sources:
   - https://blog.orange.tw/atom.xml (100-entry live Atom feed, fresh lookup)

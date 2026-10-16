@@ -1,84 +1,130 @@
 # Bug Bounty AI
 
-A template for running authorized bug bounty work with a local AI coding agent.
+A workspace for running authorized bug bounty work with a local AI coding agent.
 Works with Claude Code, OpenCode, Codex, Cursor, or anything else that reads a
 markdown instruction file and can shell out.
 
-The agent drives [Kali](https://kali.org) over MCP. Kali holds the tools; the
-workspace holds the rules about which tool runs, in what order, against what,
-and what gets written down afterward. Everything runs on your own machine. There
-is no hosted piece and nothing is sent anywhere.
+The agent drives [Kali](https://kali.org) over MCP. Kali holds the tools; this
+repo holds the rules about which tool runs, in what order, against what, and
+what gets written down afterward. Everything runs on your own machine, and
+nothing is sent anywhere.
 
-## It learns from its own mistakes
+## Why an agent needs scaffolding, not a better model
 
-`research/notes/_lessons.md` holds ten numbered lessons, each one written after
-something actually went wrong. A `HEAD` request that answered for a 404. A `200`
-that was an error page wearing a success status. A source URL that 404'd the
-next time somebody followed it. Each entry carries the cause and the fix, because
-a lesson you cannot act on is just an anecdote.
+An agent pointed at a bug bounty program fails in ways that have nothing to do
+with its intelligence:
 
-Some of them changed the tooling. One target's `subfinder` output got read into
-another target's run, because both sessions shared `/tmp/work` and both wrote a
-file called `sf.txt`. Nothing errored. The file had a current mtime and a
-plausible line count, and the pipeline carried the wrong hostnames all the way to
-the results. The fix was `scripts/scratch.sh`: one scratch directory per target,
-refused if it already has content, and every results file checked against the
-target's registrable domain before it gets filed.
+**It recons hosts nobody authorized.** The program lists the assets it wants
+tested. Recon finds more, and more is not the same as in scope. Third-party SaaS,
+marketing subdomains, an acquisition's old infrastructure: all of it resolves and
+all of it can be out of scope. The agent has no way to tell a listed hostname from
+a plausible one, so it picks, and the legal boundary is where it guesses.
 
-That failure mode reads like a clean run from the outside, which is exactly why it
-needed a script rather than a reminder. The lesson file is what gets read once.
-The script is why it does not happen twice.
+**It answers from memory.** "How does this auth flow work" gets a confident
+paragraph with no source. Techniques get patched. Advisory URLs 404. OAuth flows
+change between library versions. The reply looks identical whether it came from
+the current advisory or from a training set that predates the CVE, which means
+nobody, including the agent, can tell which one they are reading.
 
-`AGENTS.md` routes every agent to that file before it touches a tool, and
-`docs/toolchain.md` records which tool does what so the choice is not improvised
-each session.
+**It loses the thread.** Ten minutes of passive enumeration gives you a few
+hundred subdomains and a directory of files with names like `sf.txt`. Which lead
+was worth following? What did the last session already try? What came back empty
+after twenty minutes and shouldn't be retried? None of that survives, so the next
+session starts from zero and often repeats the same dead end.
 
-## Why the rules exist
+**It writes findings like a form letter.** This is the one that costs money. The
+report is the deliverable, and a report that reads like every other report gets
+triaged, not paid.
 
-An agent driving a security toolchain fails in ways that have nothing to do with
-the toolchain:
+## What you actually get
 
-- It recons hosts nobody authorized. Scope is a legal boundary, and a subdomain
-  that *looks* related is not the same as one the program listed.
-- It answers from memory. Vulnerability knowledge goes stale quietly, and
-  confident recall is worse than an honest gap because you cannot tell them apart
-  from the outside.
-- It loses the thread. Ten minutes of enumeration gives you hundreds of files and
-  no record of which lead was worth following.
-- It writes findings like a form letter, and the report is the part that gets you
-  paid.
+44 files, and each group answers one of those four problems.
 
-Each one gets a mechanism rather than a prompt: a scope gate that stops the run,
-a research protocol that wants a citation, one folder per hostname, and a report
-structure reviewed before submission.
+| | What it does |
+| --- | --- |
+| `AGENTS.md` | The rules, plus a routing table that tells an agent which of the other 43 files to open for the task in front of it |
+| `recon/<host>/scope.md` | The scope gate. Read first, passed before anything touches a host. A hostname that is not in this file is out of scope, and nothing infers otherwise |
+| `research/notes/` | 15 notes on vulnerability classes, CVE applicability, and where the research sources actually live. Each dated, because the sources move |
+| `research/notes/_lessons.md` | 10 recorded mistakes, each with its cause and its fix |
+| `docs/` | 8 operational docs: the runnable recon pipeline, which tool for which job, how a report gets written |
+| `scripts/doctor.ps1` | One command that checks the whole setup and tells you what is actually wrong |
+| `scripts/setup-kali.ps1` | Installs 33 recon and wordlist packages plus the official Kali MCP server, and starts it |
+| `scripts/scratch.sh` | Prevents one target's output being filed under another |
 
-## What it will not do
+Three design choices worth knowing about, because they are the difference
+between this and a folder of prompts:
 
-- Nothing runs unattended against a live host. You are in the loop on every scan.
-- Scope is never inferred. A hostname that is not in `recon/<host>/scope.md` is
-  out of scope.
-- No exploit generation. Proving impact with the smallest sample that shows it is
-  the job; weaponizing it and leaving artifacts behind is not.
-- No target data in this repository.
+**The rules live in one file.** `AGENTS.md` is the portable instruction format.
+Claude Code, OpenCode, Codex and Cursor all read it. The agent-specific files
+(`CLAUDE.md`, `opencode.json`, `.opencode/commands/`) are wiring, never copies of
+the rules. Fork the wiring if you must, never the rules.
 
-## Using this template
+**The scope gate is a stop, not a suggestion.** The agent runs passive
+enumeration freely, because that hits third-party APIs and certificate logs
+rather than the victim. Port scanning, HTTP probing and fuzzing halt until you
+confirm the host is authorized. Only you know where the program's boundary sits.
 
-Use the template button on GitHub, or clone it and delete what you do not need.
-Then run one command.
+**It learns from its own mistakes.** Ten lessons sit in
+`research/notes/_lessons.md`, and `AGENTS.md` routes every agent to that file
+before it touches a tool. Some of those lessons changed the code. One target's
+`subfinder` output got read into another target's run, because both sessions
+shared `/tmp/work` and both wrote a file called `sf.txt`. Nothing errored. The
+file had a current mtime and a plausible line count, and the wrong hostnames
+carried all the way to the results. `scripts/scratch.sh` exists to make that
+impossible: one scratch directory per target, refused if it already has content,
+and every results file checked against the target's registrable domain before it
+gets filed. That failure reads like a clean run from the outside, which is
+exactly why it needed a script rather than a reminder.
+
+## Install
+
+### Requirements
+
+| | |
+| --- | --- |
+| OS | Windows 10 or 11, with WSL 2 |
+| Shell | PowerShell 5.1 or PowerShell 7+ |
+| Disk | `seclists` alone is 1.9 GB installed. `setup-kali.ps1 -Full` pulls `kali-linux-full` at roughly 25 GB |
+| Agent | Anything that reads `AGENTS.md` and can run shell commands |
+
+Linux and macOS work with the docs and notes. The PowerShell helpers and the
+`kali` MCP wiring are Windows-specific, because that is where this was built.
+
+### Steps
+
+**1. Get Kali into WSL.** One time. If the distro is already there, skip it.
+
+```powershell
+wsl --install kali-linux --no-launch
+```
+
+Add `--location D:\WSL\Kali` to put the virtual disk somewhere other than `C:`.
+WSL is slow across `/mnt/d`, and a Kali image is large. Restart Windows after this
+if it asks.
+
+**2. Clone and install the toolset.** This takes a while. It installs 33 packages
+across recon, web probing, wordlists and plumbing, then installs `mcp-kali-server`
+and starts it.
+
+```powershell
+git clone https://github.com/AlGhozaliRamadhan/bugbounty-ai.git
+cd bugbounty-ai
+.\scripts\setup-kali.ps1
+```
+
+Kali is rolling-release, so package names drift. Missing ones are listed at the
+end rather than aborting the run. Add specific ones with
+`.\scripts\setup-kali.ps1 -Packages httpx,nuclei`.
+
+**3. Check it.**
 
 ```powershell
 .\scripts\doctor.ps1
 ```
 
-It checks that the required files are present, that `recon/` is actually
-gitignored, that `opencode.json` points at this checkout rather than the machine
-the template was authored on, and that WSL and the Kali bridge are reachable. Each
-line is `OK`, `WARN`, or `FAIL`, and nothing stops the run: a missing wordlist is
-information, not a reason to fail somebody's setup.
-
 ```
 Repository
-  OK    all 20 required files present
+  OK    all 23 required files present
 
 Git safety
   OK    recon/ is ignored, target data cannot be staged
@@ -87,26 +133,34 @@ Git safety
 Configuration
   WARN  bridge path points at a different machine
               opencode.json has:  /mnt/d/Bug Bounty/scripts/kali-mcp-bridge.sh
-        this checkout is:   /mnt/c/Users/you/bugbounty-ai
+        this checkout is:   /mnt/c/you/bugbounty-ai
 ```
 
-Two things a fresh clone almost always needs. The doctor will name both:
+Every line is `OK`, `WARN`, `FAIL` or `SKIP`, and nothing stops the run. A missing
+wordlist is information, not a reason to fail your setup. Add `-SkipKali` before
+you have WSL, and `-Strict` for CI.
 
-- **Fix the path.** `opencode.json` ships pointing at `D:\Bug Bounty`, which Kali
-  sees as `/mnt/d/Bug Bounty`. Edit the `command` array to match wherever you
-  cloned it. If your path has no space in it you can drop the quoting throughout
-  the docs too.
-- **Install Kali into WSL**, if you have not already. The helpers assume a distro
-  named `kali-linux`, running as root.
+**4. Fix the warning.** `opencode.json` ships pointing at the machine it was
+authored on. Edit the `command` array so the bridge path matches your checkout. If
+your path has no space in it you can drop the quoting throughout the docs too.
 
-`.\scripts\check-kali.ps1` goes deeper. It probes the MCP API server with a real
-command round-trip and inventories all 22 tools, which takes a while because each
-one costs a WSL hop.
+That `recon/ is ignored` line is the one that matters. It means the next
+`git add .` cannot stage a real target's `scope.md`, `notes.md` or `findings/`.
+Those hold unpublished recon and name the program paying for the finding.
 
-Replace this README once you are set up. It describes the template, and your fork
-is yours.
+**5. Point your agent at the folder.** Read
+[`docs/environment.md`](docs/environment.md) for how the MCP is wired and what to
+do when a tool call fails, then open the workspace and start.
 
-### Which agent am I running?
+## What it will not do
+
+- Nothing runs unattended against a live host. You are in the loop on every scan.
+- Scope is never inferred.
+- No exploit generation. Proving impact with the smallest sample that shows it is
+  the job. Weaponizing it and leaving artifacts behind is not.
+- No target data in this repository.
+
+## Which agent am I running?
 
 The rules are portable. Only the wiring is agent-specific.
 
@@ -145,10 +199,10 @@ decided: vulnerability classes, CVE applicability, where the sources actually
 live. It changes when an upstream source does, which is why every note wants a
 date and a URL.
 
-## Quick start
+## Day to day
 
 ```powershell
-# 1. Check the setup. Run this first, every time.
+# 1. Check the setup. Cheap, run it first every time.
 .\scripts\doctor.ps1
 
 # 2. Scaffold a target folder, named after the hostname
@@ -162,10 +216,6 @@ date and a URL.
 # 5. Log what you did, including the dead ends, in recon\api.example.com\notes.md
 ```
 
-Tooling is not fully installed by default. `docs\environment.md` lists what is
-verified present and what is missing. Add more with
-`.\scripts\setup-kali.ps1 -Packages <name>`.
-
 On OpenCode the same workflows run by name:
 
 | Command | Does |
@@ -175,16 +225,6 @@ On OpenCode the same workflows run by name:
 | `/recon <host>` | Resume at active recon, scope already confirmed |
 | `/report <host>` | Turn a confirmed bug into a submittable report |
 | `/lookup <topic>` | Research protocol: check the index, verify sources, write the note |
-
-## The scope gate
-
-`recon/<host>/scope.md` is read first and passed before anything touches a host.
-It records what the program authorizes, what it excludes, and what it will not
-pay for.
-
-The rule that gets broken most often: a subdomain found during recon is not in
-scope because you found it. Most programs exclude unlisted hosts, third-party
-SaaS, and anything under a different registrable domain.
 
 ## Targets stay local
 

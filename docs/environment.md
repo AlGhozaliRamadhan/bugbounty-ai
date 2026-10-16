@@ -19,7 +19,7 @@ Everything here was probed on this machine on 2026-10-16. Anything marked
 | Ubuntu distro VHD | `D:\WSL\Ubuntu` |
 | Workspace | `D:\Bug Bounty` (note the space) |
 | Workspace as Kali sees it | `/mnt/d/Bug Bounty` |
-| Kali scratch space | `/tmp/work` |
+| Kali scratch space | `/tmp/recon/<host>` — per target, created by `scripts/scratch.sh` |
 | MCP API log | `/tmp/kali-mcp.log` inside Kali |
 
 Nothing belongs on `C:`. `C:` is the Windows system drive and has limited free
@@ -86,7 +86,7 @@ Two different timeouts, both necessary:
 - `--timeout 600` is `mcp-server`'s **per-command** HTTP timeout, in seconds.
   Long scans exceed anything shorter.
 
-The global config at `C:\Users\ozate\.config\opencode\opencode.json` has other
+The global config — `%USERPROFILE%\.config\opencode\opencode.json` — has other
 MCP servers and is **not** to be edited from this workspace.
 
 ## Kali runs as root, with no default user
@@ -182,8 +182,8 @@ paths work; the latter is the real one.
 
 One trap: **`rockyou` ships gzipped only.** There is no plain
 `/usr/share/wordlists/rockyou.txt`, which is exactly what `john_crack`
-defaults to. `gunzip` it into `/tmp/work` first — `ffuf` and most other tools
-can't read `.gz` either.
+defaults to. `gunzip` it into the per-target scratch dir first — `ffuf` and most
+other tools can't read `.gz` either.
 
 Note for whoever checks next: `dirb/` and `sqlmap.txt` only appeared once the
 `wordlists` package finished installing. Probing mid-install produces confident,
@@ -194,17 +194,53 @@ wrong answers. Re-verify after any package change.
 It is a cross-filesystem mount. Thousands of small writes across it crawl,
 which makes wordlists, `ffuf` response dumps, and nuclei output painful.
 
-Build in `/tmp/work` inside Kali, then copy the finished files into the target
-folder:
+Build in the per-target scratch dir inside Kali, then copy the finished files
+into the target folder:
 
 ```bash
-mkdir -p /tmp/work && cd /tmp/work
+SCRATCH=$(sh "/mnt/d/Bug Bounty/scripts/scratch.sh" init example.com)
+cd "$SCRATCH"
 cp /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt ./wf.txt
 # ... run the tool against ./ ...
+sh "/mnt/d/Bug Bounty/scripts/scratch.sh" check example.com results.txt
 cp -v results.txt "/mnt/d/Bug Bounty/recon/example.com/"
 ```
 
-The target folder is the durable record; `/tmp/work` is scratch.
+The target folder is the durable record; the scratch dir is scratch.
+
+## Scratch is per-target — never use a shared `/tmp/work`
+
+Recon used to run out of one shared directory, `/tmp/work`, for every target
+and every session. Tools leave generically-named files behind — `sf.txt`,
+`resolved.txt`, `live.txt`, `urls.txt` — so a later session could read a previous
+target's output as its own.
+
+That happened on 2026-10-16. A `www.example.com` subdomain run picked up 753
+lines of `sf.txt` left behind by an earlier **`example.org`** session; roughly 40
+of those lines belonged to that other program. Nothing caught it at the time
+— it surfaced only on review. A second, independent bug in the same run: the
+filter `grep 'example\.com$'` also accepts `notexample.com`, because
+`grep` matches substrings.
+
+`scripts/scratch.sh` exists for both problems:
+
+```bash
+S="/mnt/d/Bug Bounty/scripts/scratch.sh"
+
+sh "$S" init  <target>            # per-target dir; REFUSES if it already has content
+sh "$S" check <target> <file>...  # exit 1 if any file holds hosts off the target's domain
+sh "$S" reset <target>            # delete that target's scratch
+sh "$S" list                      # show what exists
+```
+
+Two rules that follow from it:
+
+- **NEVER work in a shared `/tmp/work`, and NEVER `cp /tmp/work/*.txt "$OUT/"`.**
+  A glob copy is how one target's results land in another target's durable record.
+  Name files explicitly, and `check` them first.
+- **NEVER treat `grep 'domain$'` as a membership test.** A host is under a domain
+  if it equals it or is any labels deep beneath it: `^([^.]+\.)*domain$`. That
+  accepts `a.b.example.com` and rejects `notexample.com` for `example.com`.
 
 ## The path has a space in it
 
@@ -271,7 +307,8 @@ script to a file and pipe it in:
 ```powershell
 # no BOM - a UTF-8 BOM makes bash fail with "\ufeff{: command not found"
 $script = @'
-mkdir -p /tmp/work && cd /tmp/work
+SCRATCH=$(sh "/mnt/d/Bug Bounty/scripts/scratch.sh" init example.com)
+cd "$SCRATCH"
 nmap --version | head -1
 '@
 [System.IO.File]::WriteAllText("D:\Bug Bounty\scripts\tmp-probe.sh", $script)

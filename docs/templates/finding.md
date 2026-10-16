@@ -113,6 +113,6 @@ Append-only — don't rewrite earlier entries.
   hundred demonstrates negligence. The scope rule in `AGENTS.md` says the same
   thing: prove impact minimally.
 - **No destructive payloads.** Never pull a full database to prove access.
-- **Never commit PoCs or findings to a public repo.** This workspace has no
-  remote and must not get a public one.
+- **Never commit PoCs or findings.** This repo is public; every file under
+  `recon/<target>/` is gitignored for that reason.
 - **Record dead ends.** The next session should not retry what already failed.

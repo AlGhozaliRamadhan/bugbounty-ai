@@ -17,16 +17,24 @@ script is **POSIX `sh`-safe** — `execute_command` runs dash, not bash.
 ```text
 1. scope.md filled in and the host is on the in-scope list
 2. recon/<host>/ folder exists
-3. WSL scratch ready:  mkdir -p /tmp/work && cd /tmp/work
+3. Per-target scratch ready:  SCRATCH=$(sh "/mnt/d/Bug Bounty/scripts/scratch.sh" init <host>) && cd "$SCRATCH"
 ```
+
+Scratch is **per target**, never a shared `/tmp/work` — see the "Scratch is
+per-target" section of [`environment.md`](environment.md) for what goes wrong
+otherwise, and for the `check` guard that catches it.
 
 Set the target once per session:
 
 ```sh
 TARGET="example.com"
+SCRATCH=$(sh "/mnt/d/Bug Bounty/scripts/scratch.sh" init "$TARGET")
 OUT="/mnt/d/Bug Bounty/recon/$TARGET"
-mkdir -p /tmp/work && cd /tmp/work
+cd "$SCRATCH"
 ```
+
+`init` refuses to reuse a non-empty directory, so a dirty scratch from an
+earlier session can never be mistaken for a fresh one.
 
 `$OUT` **must stay quoted at every use.** `/mnt/d/Bug Bounty` has a space in it,
 and an unquoted path splits and writes to the wrong place.
@@ -60,9 +68,17 @@ subfinder -d "$TARGET" -silent -o sf.txt
 assetfinder --subs-only "$TARGET" > af.txt
 amass enum -passive -d "$TARGET" -o amass.txt          # -passive: archives only
 
-cat sf.txt af.txt amass.txt | sed 's/\.$//' | sort -u > subs_raw.txt
+# Membership test must be "is the base domain, or any labels under it".
+# grep 'domain$' also accepts notdomain.com — use the anchored form.
+cat sf.txt af.txt amass.txt | sed 's/\.$//' | tr 'A-Z' 'a-z' \
+  | grep -E "^([^.]+\.)*example\.com\$" | sort -u > subs_raw.txt
+
+sh "/mnt/d/Bug Bounty/scripts/scratch.sh" check "$TARGET" subs_raw.txt
 wc -l < subs_raw.txt
 ```
+
+The `check` line is not optional decoration. A shared scratch directory once fed
+another target's `sf.txt` into this pipeline; `check` is what catches that.
 
 Also pull historical hosts — these surface forgotten infrastructure:
 
@@ -143,11 +159,11 @@ cat "$OUT/live.txt" | awk '{print $1}' | grep -E '^https?://' | sort -u > urls_b
 ```sh
 . /etc/profile.d/gobin.sh
 
-katana -list urls_base.txt -d 3 -jc -kf all -silent -o /tmp/work/katana.txt
-gau --providers wayback,commoncrawl,otx,urlscan -subs "$TARGET" > /tmp/work/gau.txt
-hakrawler -url "https://$TARGET" -depth 3 -plain > /tmp/work/hak.txt
+katana -list urls_base.txt -d 3 -jc -kf all -silent -o $SCRATCH/katana.txt
+gau --providers wayback,commoncrawl,otx,urlscan -subs "$TARGET" > $SCRATCH/gau.txt
+hakrawler -url "https://$TARGET" -depth 3 -plain > $SCRATCH/hak.txt
 
-cat /tmp/work/katana.txt /tmp/work/gau.txt /tmp/work/hak.txt \
+cat $SCRATCH/katana.txt $SCRATCH/gau.txt $SCRATCH/hak.txt \
   | grep -E '^https?://' | sort -u > "$OUT/urls.txt"
 wc -l < "$OUT/urls.txt"
 ```
@@ -156,8 +172,8 @@ Extract parameters — this is the input to every later phase:
 
 ```sh
 . /etc/profile.d/gobin.sh
-cat "$OUT/urls.txt" | gf qurl | grep -E '\?' | sort -u > /tmp/work/params.txt
-wc -l < /tmp/work/params.txt
+cat "$OUT/urls.txt" | gf qurl | grep -E '\?' | sort -u > $SCRATCH/params.txt
+wc -l < $SCRATCH/params.txt
 ```
 
 ## Phase 6 — Content discovery
@@ -169,14 +185,14 @@ Start small, then widen. Use a wordlist from `docs/environment.md`.
 ffuf -u "https://$TARGET/FUZZ" \
   -w /usr/share/seclists/Discovery/Web-Content/common.txt \
   -mc all -fc 404 -rate 50 -t 20 -s \
-  -o /tmp/work/ffuf_quick.json
+  -o $SCRATCH/ffuf_quick.json
 
 # Deeper, with extensions
 ffuf -u "https://$TARGET/FUZZ" \
   -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt \
   -e .php,.html,.json,.txt,.bak,.old,.zip \
   -mc all -fc 404 -rate 50 -t 20 -s \
-  -o /tmp/work/ffuf_medium.json
+  -o $SCRATCH/ffuf_medium.json
 ```
 
 Alternatives: `feroxbuster` (recursive, `--rate-limit 50 --depth 3`),
@@ -194,7 +210,7 @@ wafw00f "https://$TARGET"
 
 # Template-based triage, severity-gated, rate-limited
 nuclei -l "$OUT/live.txt" -severity low,medium,high,critical \
-  -rate-limit 50 -rl 50 -o /tmp/work/nuclei.txt
+  -rate-limit 50 -rl 50 -o $SCRATCH/nuclei.txt
 
 # Cautious, bounded
 nikto -h "https://$TARGET" -maxtime 5m -nointeractive
@@ -210,12 +226,21 @@ submitting unverified scanner output is a fast way to lose credibility.
 TARGET="example.com"
 OUT="/mnt/d/Bug Bounty/recon/$TARGET"
 
-cp -v /tmp/work/nuclei.txt /tmp/work/params.txt "$OUT/"
-cp -v /tmp/work/ffuf_medium.json "$OUT/"
+# Guard first - refuse to file anything holding foreign hosts.
+sh "/mnt/d/Bug Bounty/scripts/scratch.sh" check "$TARGET" nuclei.txt params.txt
+
+# Name every file explicitly. NEVER glob.
+cp -v nuclei.txt "$OUT/nuclei.txt"
+cp -v params.txt "$OUT/params.txt"
+cp -v ffuf_medium.json "$OUT/ffuf_medium.json"
 ```
 
-Build in `/tmp/work`, copy the finished files across. `/mnt/d` is a
-cross-filesystem mount and thousands of small writes there crawl.
+Build in the per-target scratch dir, copy the finished files across. `/mnt/d` is
+a cross-filesystem mount and thousands of small writes there crawl.
+
+**Never `cp $SCRATCH/*.txt "$OUT/"`.** A glob sweeps whatever else is lying in
+a shared scratch directory into this target's durable record. That is precisely
+how an `example.org` run ended up filed as `example.com` data on 2026-10-16.
 
 ## Phase 9 — Manual hunt
 

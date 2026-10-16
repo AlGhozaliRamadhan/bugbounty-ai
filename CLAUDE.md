@@ -37,6 +37,7 @@ If your harness supports opencode-style project commands, four exist in
 
 | Command | Does |
 | --- | --- |
+| `/doctor` | Check the setup with `scripts/doctor.ps1`, offer the safe fixes |
 | `/scope <host>` | Scaffold `recon/<host>/` and complete the scope gate |
 | `/recon <host>` | Run the playbook, with scope and rate gates enforced |
 | `/report <host>` | Turn a confirmed bug into a submittable report |

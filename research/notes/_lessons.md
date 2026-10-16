@@ -153,6 +153,66 @@ announce itself*.
 
 ---
 
+## 10. A shared scratch directory will contaminate your results
+
+**DON'T:** run recon out of one fixed path, `/tmp/work`, for every target and
+every session.
+
+On 2026-10-16 a `www.example.com` subdomain enumeration ran `subfinder -d
+example.com -o sf.txt` in `/tmp/work`. An earlier session that same day had been
+reconning **`example.org`** and left its own `sf.txt`, `resolved.txt`,
+`naabu_quick.txt` and `nuclei.log` behind. The new run read 753 lines of which a
+chunk belonged to that other program. Nothing errored. The file had a current
+mtime, the count looked plausible, and the pipeline carried on.
+
+It was only caught on review, when `example.org` turned up in output about a
+different target.
+
+**Why it mattered:** generic filenames (`sf.txt`, `resolved.txt`, `live.txt`,
+`urls.txt`) collide across targets *and* across sessions. Worse, the documented
+copy step was a glob — `cp -v /tmp/work/*.txt "$OUT/"` — which would have filed
+the other target's leftovers into this target's durable `recon/` record.
+
+**DO:** use per-target scratch, and guard it.
+
+```bash
+S="/mnt/d/Bug Bounty/scripts/scratch.sh"
+SCRATCH=$(sh "$S" init <target>)      # refuses if the dir already has content
+cd "$SCRATCH"
+sh "$S" check <target> <file>...     # exit 1 if any host is off-domain
+```
+
+The *refuses if dirty* behaviour is the important half: it turns a silent mix-up
+into a loud stop. And copy results back by **explicit filename**, never a glob.
+
+### The same run had a second, unrelated bug: `grep 'domain$'` is not a membership test
+
+Filtering with `grep 'example\.com$'` also accepted **`notexample.com`** —
+`grep` matches substrings, and `notexample.com` ends with those characters.
+
+**DO:** anchor it. A host belongs to a domain if it *is* that domain or sits any
+number of labels beneath it:
+
+```sh
+grep -E "^([^.]+\.)*example\.com$"
+```
+
+That accepts `a.b.example.com` and rejects `notexample.com`.
+`scripts/scratch.sh check` wraps exactly this.
+
+### And the third: I "fixed" a file by inverting the grep
+
+Rebuilding a list I had just clobbered, I ran `grep -vE` (keep the non-matching
+lines) where the intent was `grep -E` (keep the matching ones) — keeping the 2
+bad lines and discarding the 701 good ones.
+
+**DO:** check the direction of a negation before running it, and `wc -l`
+immediately after any rebuild. That is the cheapest guard there is. It only came
+out well because the archived raw sources were still on disk — **archive scratch
+before clearing it, don't delete it.**
+
+---
+
 ## When in doubt
 
 1. Probe it before asserting it.

@@ -61,11 +61,25 @@ an empty `<program name and ID>` in `scope.md` is a visible, correct prompt.
 
 ## Step 3 — Passive recon (automatic, safe)
 
-No packets to the target. Run this without asking:
+No packets to the target. Run this without asking.
+
+**Get per-target scratch first.** Never work in a shared `/tmp/work` — two
+targets and two sessions collide there, and the result is one target's results
+silently filed under another's name.
+
+```sh
+SCRATCH=$(sh "/mnt/d/Bug Bounty/scripts/scratch.sh" init "$TARGET")
+cd "$SCRATCH"
+```
+
+`init` **refuses** if the directory already has content, so a dirty scratch can
+never be mistaken for a fresh one. If it refuses, work in it deliberately or
+`sh scratch.sh reset "$TARGET"` first.
+
+Then:
 
 ```sh
 . /etc/profile.d/gobin.sh
-mkdir -p /tmp/work && cd /tmp/work
 
 subfinder -d "$TARGET" -silent -o sf.txt
 assetfinder --subs-only "$TARGET" > af.txt
@@ -73,8 +87,20 @@ amass enum -passive -d "$TARGET" -o amass.txt
 waybackurls "$TARGET" | awk -F/ '{print $3}' | sort -u > wb_hosts.txt
 
 cat sf.txt af.txt amass.txt wb_hosts.txt | sed 's/\.$//' | sort -u > subs_all.txt
-wc -l < subs_all.txt
 ```
+
+**Filter on the registrable domain, then verify.** `grep 'example\.com$'` is not a
+membership test — it also matches `notexample.com`. Use:
+
+```sh
+cat sf.txt af.txt amass.txt wb_hosts.txt \
+  | sed 's/\.$//' | tr 'A-Z' 'a-z' \
+  | grep -E "(^|\.)${TARGET#*.}\$" | sort -u > subs_all.txt
+sh "/mnt/d/Bug Bounty/scripts/scratch.sh" check "$TARGET" subs_all.txt
+```
+
+`check` fails loudly if any line sits off the target's domain. Run it before
+anything gets filed.
 
 Save the union to `recon/<host>/subdomains.txt`.
 
@@ -123,12 +149,17 @@ If the kali MCP errors, that is almost never your command — run
 
 ## Step 6 — Collect and record
 
-Copy finished files from `/tmp/work` into `recon/<host>/` — the quoted path is
-mandatory, `/mnt/d/Bug Bounty` has a space in it.
+Copy finished files from the per-target scratch into `recon/<host>/` — the
+quoted path is mandatory, `/mnt/d/Bug Bounty` has a space in it.
+
+**Name the files explicitly. Never `cp /tmp/work/*.txt`** — that glob would
+sweep another target's leftovers into this target's durable record, which is the
+exact failure this workspace was hit by on 2026-10-16.
 
 ```sh
 OUT="/mnt/d/Bug Bounty/recon/$TARGET"
-cp -v /tmp/work/*.txt "$OUT/"
+sh "/mnt/d/Bug Bounty/scripts/scratch.sh" check "$TARGET" subs_all.txt
+cp -v subs_all.txt "$OUT/subdomains.txt"
 ```
 
 Then append to `recon/<host>/notes.md`:

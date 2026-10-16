@@ -10,6 +10,7 @@ including tasks that need none of the detail.
 
 | The task is | Read first |
 | --- | --- |
+| Fresh clone, or "is this set up" / a tool is missing | the **`doctor` skill**, then `docs/environment.md` |
 | A target URL or hostname is named | the **`scope` skill** — see below. It normalizes, scaffolds, and gates |
 | Anything that touches a host | `recon/<target>/scope.md`. **Non-negotiable.** |
 | The whole engagement shape, or where a gate stops you | `docs/workflow.md` |
@@ -18,6 +19,7 @@ including tasks that need none of the detail.
 | Kali / WSL / MCP broken, tool missing, wordlist path | `docs/environment.md` — process model, recovery, verified tool inventory |
 | Running bash through PowerShell | `docs/environment.md` § "Writing bash through PowerShell" |
 | Scaffolding a target folder by hand | `.\scripts\new-target.ps1 -Target <host>` |
+| Checking the setup after a clone | `.\scripts\doctor.ps1` — OK / WARN / FAIL, advisory |
 | Have a finding to write up | `docs/report-writing.md` |
 | Answering a methodology question | `research/notes/_index.md` — check before researching |
 | Running tools, shell commands, probes | `research/notes/_lessons.md` — real mistakes |
@@ -32,6 +34,7 @@ Full doc index, including the research notes: `docs/index.md`.
 
 | Command | Does |
 | --- | --- |
+| `/doctor` | Load the `doctor` skill, check the setup and offer fixes |
 | `/scope <url>` | Load the `scope` skill and run the whole flow |
 | `/recon <host>` | Same, resuming at active recon — scope already confirmed |
 | `/report <host>` | Turn a confirmed bug into a submittable report |
@@ -60,7 +63,11 @@ read and the first gate to pass.
 - Respect the program's rate limits. Default to low-rate and `-c`/delay flags.
 - Prove impact minimally — pull the smallest sample that demonstrates the bug,
   not the whole database.
-- Never push findings, credentials, or working exploits to a public repo.
+- **This repo is public. Nothing under `recon/<target>/` ever leaves the machine.**
+  That includes `scope.md`, `notes.md`, and `findings/` — they hold unpublished
+  recon and name the private program that pays. `.gitignore` blanket-ignores the
+  whole target folder; don't un-ignore it, and check
+  `git status --ignored --short recon/` before every commit.
 
 If a task would cross one of these, say which line is being crossed and stop
 there.
@@ -132,9 +139,9 @@ Scaffold one with `.\scripts\new-target.ps1 -Target <host>`. It creates
 never `%TEMP%`, never `C:\`, never a scratch dir in Kali. If a command would
 write somewhere else, redirect it into the target folder.
 
-Raw tool output (`*.txt` dumps, screenshots, PoC scripts) is gitignored by
-design. `scope.md`, `notes.md`, and `findings/` are tracked — that is the
-durable record.
+The durable record of a target lives on disk, not in git. **Everything** under
+`recon/<target>/` is gitignored — `scope.md`, `notes.md`, `findings/`, and every
+raw dump — because this repo is public. `recon/README.md` stays tracked.
 
 ## Environment rules
 
@@ -170,16 +177,18 @@ durable record.
   nmap -sS -p- --open example.com -oN "/mnt/d/Bug Bounty/recon/example.com/ports.txt"
   ```
   An unquoted path splits at the space and silently writes to the wrong place.
-- **`/mnt/d` is slow.** Build in `/tmp/work` inside Kali, then copy finished
+- **`/mnt/d` is slow.** Build in the per-target scratch dir inside Kali
+  (`sh "/mnt/d/Bug Bounty/scripts/scratch.sh" init <host>`), then copy finished
   files into the target folder. Thousands of small writes across the
-  cross-filesystem mount crawl.
+  cross-filesystem mount crawl. Never work in a shared `/tmp/work` and never
+  `cp /tmp/work/*.txt "$OUT/"` — that files one target's results under another.
 - **Never write multi-line bash inline through PowerShell.** `wsl -e bash -lc
   "..."` puts the string through PowerShell's parser, so `&&`, `||`, `$()` and
   `<` break in ways that look like bash errors. For anything beyond one simple
   command, write a script file (no BOM) and pipe it to `bash -s`. Working recipe
   in `docs/environment.md`.
 - **The `kali` MCP is registered in this project only.** `opencode.json` here
-  wires it. The global config at `C:\Users\ozate\.config\opencode\opencode.json`
+  wires it. The global config — `%USERPROFILE%\.config\opencode\opencode.json` —
   has its own MCPs and is **not** to be edited from here. Keep this workspace
   self-contained on D:.
 

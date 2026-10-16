@@ -70,12 +70,13 @@ Rules:
 
 - **Always extend extensions.** `ffuf -e .php,.html,.json,.txt,.bak,.old,.zip`.
   Backups and stray configs are half of what directory brute force finds.
-- **`rockyou` ships gzipped only.** `gunzip` it into `/tmp/work` first. There's
-  no plain `rockyou.txt`, which is exactly what `john_crack` defaults to.
+- **`rockyou` ships gzipped only.** `gunzip` it into the per-target scratch dir
+  first. There's no plain `rockyou.txt`, which is exactly what `john_crack`
+  defaults to.
 - **Don't re-run a wordlist that already came back empty.** Record it in
   `notes.md` and move up a size.
-- **Copy wordlists to `/tmp/work` before use.** Reading them across `/mnt/d` is
-  slow.
+- **Copy wordlists into the per-target scratch dir before use.** Reading them
+  across `/mnt/d` is slow.
 
 ## Flags worth knowing
 

@@ -9,23 +9,26 @@ research notes. Check here before concluding a topic hasn't been researched.
 
 | Skill | Load it when |
 | --- | --- |
+| [doctor](../.opencode/skills/doctor/SKILL.md) | Freshly cloned, or asked "is this set up" / "am I ready". Runs `scripts/doctor.ps1`, reports OK/WARN/FAIL, offers fixes. |
 | [scope](../.opencode/skills/scope/SKILL.md) | A target URL or hostname is named. Normalizes the input, scaffolds `recon/<host>/`, runs passive enumeration, then **stops at the scope gate** before anything touches the host. |
 
-The `scope` skill is the canonical scope-and-recon workflow. It orchestrates
-these docs rather than restating them — if a command or flag is missing from it,
-fix the doc it points at, not the skill.
+The `scope` skill is the canonical scope-and-recon workflow, and `doctor` is the
+canonical first-run check. Both orchestrate existing scripts and docs rather
+than restating them — if a command or flag is missing from one, fix the doc or
+script it points at, not the skill.
 
 ### Commands (`.opencode/commands/`)
 
 | Command | Does |
 | --- | --- |
+| `/doctor` | Loads the `doctor` skill, checks the setup and offers fixes |
 | `/scope <url>` | Loads the `scope` skill, full flow from scratch |
 | `/recon <host>` | Loads the `scope` skill, resuming at active recon |
 | `/report <host>` | Confirmed bug → submittable report |
 | `/lookup <topic>` | Research protocol — check the index, verify sources, write the note |
 
-`/scope` and `/recon` are deliberate delegates. The workflow lives in the skill
-so there is exactly one copy of it. See the no-duplication rule in
+`/doctor`, `/scope` and `/recon` are deliberate delegates. The workflows live in
+the skills so there is exactly one copy of each. See the no-duplication rule in
 [`../CLAUDE.md`](../CLAUDE.md).
 
 ## Operational docs — `docs/`

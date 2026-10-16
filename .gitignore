@@ -1,27 +1,30 @@
 # ---------------------------------------------------------------------------
-# Recon output — bulky, regenerable, and sometimes sensitive.
-# The durable record of a target is scope.md + notes.md + findings/, all of
-# which ARE tracked. Raw tool dumps are not.
+# Recon output — ALL of it is ignored. This repo publishes the *method*; the
+# targets stay local.
+#
+# The earlier policy tracked `scope.md` + `notes.md` + `findings/` as "the
+# durable record" and ignored a hand-written list of filenames. That was right
+# while the repo was private. It is wrong now: `notes.md` on a real target is
+# unpublished recon, and `scope.md` names the private program that pays for the
+# finding. An allowlist also only protects the filenames somebody remembered —
+# `ops-api-paths.txt` and `dnsx-raw.json` both slipped past it.
+#
+# So: blanket-ignore, one level deep. Anything under `recon/<host>/` stays out
+# unless it is deliberately un-ignored here.
+#
+# Verify before you commit:  git status --ignored --short recon/
 # ---------------------------------------------------------------------------
-recon/*/subdomains.txt
-recon/*/urls.txt
-recon/*/ports.txt
-recon/*/live.txt
-recon/*/*.json
-recon/*/*.csv
-recon/*/*.xml
-recon/*/screenshots/
-recon/*/scripts/
+recon/*/*
 
-# Per-target PoC scripts. These are usually one-off curl/nmap invocations
-# written to /tmp/work; anything worth keeping belongs in research/notes/ or
-# docs/templates/ instead.
-recon/*/poc/
+# recon/README.md documents the layout and stays tracked. It is one level deep,
+# so recon/*/* does not match it. Per-target folders may keep a .gitkeep if an
+# empty scaffold dir is wanted in the tree.
+!recon/*/.gitkeep
 
 # ---------------------------------------------------------------------------
-# Credentials and capture material — never commit, ever.
-# If you save a session cookie or a bearer token, it goes in a local file
-# that is gitignored. notes.md must never contain a live token.
+# Credentials and capture material — never commit, ever, public repo or not.
+# If you save a session cookie or a bearer token, it goes in a local file that
+# is gitignored. notes.md must never contain a live token.
 # ---------------------------------------------------------------------------
 .env
 .env.*
@@ -35,13 +38,28 @@ credentials*
 *session*.json
 secrets/
 
+# Captured traffic and SSH key material. A .har file is a full session replay
+# including every request header, which is a live token by another name.
+*.har
+*.pcap
+*.pcapng
+*.cap
+id_rsa*
+id_ed25519*
+known_hosts
+
 # ---------------------------------------------------------------------------
-# Kali scratch — per AGENTS.md, work happens in /tmp/work inside WSL and only
-# finished files get copied back. Nothing here should ever land on D:.
+# Kali scratch — per AGENTS.md, work happens in /tmp/recon/<host> inside WSL and
+# only finished files get copied back. Nothing here should ever land on D:.
 # ---------------------------------------------------------------------------
 /tmp/
 work/
 scratch/
+
+# One-shot probe scripts written into scripts/ by the PowerShell → bash recipe
+# in docs/environment.md. Throwaway, and they inline machine-specific paths.
+scripts/tmp-*
+scripts/*.tmp
 
 # ---------------------------------------------------------------------------
 # Tooling / editor noise

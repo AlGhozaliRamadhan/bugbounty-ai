@@ -29,9 +29,9 @@ Do not invent friendly names like `recon/example-api/`, `recon/staging/`, or
 | `poc/` | Raw PoC output, `curl` transcripts. | no |
 | `scripts/` | One-off scripts written for this host. | no |
 
-The split is deliberate: **`scope.md`, `notes.md`, and `findings/` are the
-durable record.** Everything else is regenerable output or potentially sensitive
-material, and is gitignored.
+`scope.md`, `notes.md`, and `findings/` are the durable record *on disk*. All of
+it is gitignored — this repo is public, and unpublished recon plus the name of
+the program paying for it never leaves the machine.
 
 ## Why `notes.md` is append-only
 
@@ -54,13 +54,21 @@ Then **fill in `scope.md` before touching the host.**
 Recon output goes inside `recon/<target>/` and nowhere else — never the repo
 root, never `%TEMP%`, never `C:`, never a scratch dir in Kali.
 
-In practice that means building in Kali's `/tmp/work` and copying the finished
-file across, because `/mnt/d` is slow:
+In practice that means building in Kali's per-target scratch dir and copying the
+finished file across, because `/mnt/d` is slow:
 
 ```bash
-mkdir -p /tmp/work && cd /tmp/work
+SCRATCH=$(sh "/mnt/d/Bug Bounty/scripts/scratch.sh" init api.example.com)
+cd "$SCRATCH"
 # ... run tools against ./ ...
+sh "/mnt/d/Bug Bounty/scripts/scratch.sh" check api.example.com results.txt
 cp -v results.txt "/mnt/d/Bug Bounty/recon/api.example.com/"
 ```
 
 The quoted path is mandatory — `/mnt/d/Bug Bounty` has a space in it.
+
+Scratch is **per target**, never one shared `/tmp/work`. `init` refuses to reuse
+a non-empty directory, and `check` fails if a results file holds hostnames off
+the target's domain. Both guards exist because a shared scratch once fed a
+previous target's `sf.txt` into a different target's results. See
+[`../docs/environment.md`](../docs/environment.md) for the full account.
